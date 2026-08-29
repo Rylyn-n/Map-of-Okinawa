@@ -2,8 +2,9 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>沖繩7天行程地圖（真實地形）</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
   html, body { margin:0; padding:0; height:100%; font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif; }
   #toolbar {
@@ -114,6 +115,30 @@
     background: #4285F4; border: 3px solid white; border-radius: 50%;
     box-shadow: 0 0 4px rgba(0,0,0,0.4);
   }
+
+  /* ---------- 手機版：加大按鈕與文字，方便觸控 ---------- */
+  @media (max-width: 600px) {
+    #search-box { top: 8px; left: 50px; width: calc(100vw - 110px); max-width: none; }
+    #search-input { padding: 12px 16px; font-size: 16px; }
+    #search-results { max-height: 40vh; }
+    .search-item { padding: 13px 14px; font-size: 15px; }
+
+    #compass-btn { width: 52px; height: 52px; top: 8px; right: 8px; }
+    #compass-needle { width: 30px; height: 30px; }
+
+    #locate-btn { width: 54px; height: 54px; bottom: 60px; right: 8px; }
+    #locate-btn svg { width: 26px; height: 26px; }
+
+    #toolbar { top: 68px; right: 8px; padding: 10px 12px; max-width: 55vw; }
+    #toolbar button { font-size: 13px; padding: 9px 12px; }
+    #status { font-size: 11.5px; }
+
+    .legend { left: 8px; bottom: 16px; font-size: 14px; max-width: 78vw; padding: 10px 12px; }
+    .day-item { padding: 7px 6px; font-size: 14px; }
+    .day-item .dot { width:14px; height:14px; }
+
+    .leaflet-control-zoom a { width: 36px !important; height: 36px !important; line-height: 36px !important; font-size: 18px !important; }
+  }
 </style>
 </head>
 <body>
@@ -123,7 +148,7 @@
   <div id="search-results"></div>
 </div>
 
-<button id="compass-btn" onclick="resetNorth()" title="指北針（點擊回正北）">
+<button id="compass-btn" onclick="resetNorth()" title="點擊重置為北方朝上">
   <svg id="compass-needle" viewBox="0 0 24 24">
     <polygon points="12,2 15,12 12,10 9,12" fill="#E24C4C"/>
     <polygon points="12,22 15,12 12,14 9,12" fill="#9AA0A6"/>
@@ -150,7 +175,8 @@
 
 <div class="legend" id="legend"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet-src.js"></script>
+<script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-image/0.0.4/leaflet-image.js"></script>
 <script>
 const dayColors = {
@@ -208,7 +234,13 @@ const points = [
     "https://lh3.googleusercontent.com/place-photos/AG9NLjBJcVITAdbg1DlIkAMEln9ad_ui1nge3A2xWOP66Qt1J32NFQgtJMlbLTuqX6FB8hDZLvJ0KAIU6Opccal_QmmXCxx9yqNsGTNktCZPTaueWe_6eY9B8xodQp8Wsp5CUNCO8GlviYTdzV5ngoU=s800"]
 ];
 
-const map = L.map('map', { attributionControl: true }).setView([26.42, 127.85], 10);
+const map = L.map('map', {
+  attributionControl: true,
+  rotate: true,           // 啟用旋轉功能（雙指旋轉手勢 / Shift+拖曳）
+  rotateControl: false,   // 不使用外掛內建的旋轉按鈕，改用我們自己的指北針
+  touchRotate: true,      // 手機雙指旋轉手勢
+  bearing: 0
+}).setView([26.42, 127.85], 10);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
@@ -249,6 +281,12 @@ points.forEach(([name, lat, lon, day, note, photoUrl]) => {
 });
 
 map.fitBounds(bounds, { padding: [40, 40] });
+
+// 地圖旋轉時，指北針跟著反向旋轉，永遠指向真正的北方（仿 Google Maps）
+map.on('rotate', () => {
+  const bearing = map.getBearing ? map.getBearing() : 0;
+  document.getElementById('compass-needle').style.transform = `rotate(${-bearing}deg)`;
+});
 
 let activeDay = null;
 let pinnedDay = null;
@@ -533,9 +571,12 @@ function startCompass() {
 }
 
 function resetNorth() {
-  // 目前地圖本身固定北方朝上（未做旋轉），此按鈕做為指北針參考／重新校正方向感應
+  // 點擊指北針：把地圖旋轉角度重置回正北朝上
+  if (map.setBearing) {
+    map.setBearing(0);
+  }
   document.getElementById('compass-needle').style.transform = 'rotate(0deg)';
-  document.getElementById('status').innerText = "地圖固定北方朝上";
+  document.getElementById('status').innerText = "已重置為北方朝上";
 }
 </script>
 </body>
