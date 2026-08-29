@@ -52,7 +52,7 @@
 <div id="toolbar">
   <button onclick="locateMe()">📍 定位我的位置</button>
   <button onclick="exportMap()">📷 匯出目前畫面為圖片</button>
-  <div id="status">滑鼠移到天數可預覽，點擊天數會持續標示直到再次點擊或按「顯示全部」</div>
+  <div id="status">滑鼠移到天數可預覽，點擊天數會持續標示並移動視野到該天全部地點</div>
 </div>
 
 <div id="map"></div>
@@ -214,6 +214,16 @@ function clickDay(day) {
     pinnedDay = day;
     highlightDay(day);
     updateActiveClasses(day);
+
+    // 將視野移動到該天所有地點範圍
+    const dayBounds = allMarkers
+      .filter(({day: d}) => d == day)
+      .map(({marker}) => marker.getLatLng());
+    if (dayBounds.length === 1) {
+      map.setView(dayBounds[0], 15);
+    } else if (dayBounds.length > 1) {
+      map.fitBounds(dayBounds, { padding: [60, 60] });
+    }
   }
 }
 
@@ -222,6 +232,7 @@ function resetAll() {
   activeDay = null;
   clearHighlight();
   updateActiveClasses(null);
+  map.fitBounds(bounds, { padding: [40, 40] });
 }
 
 // 建立圖例：滑過(hover)預覽，點擊(click)持續釘選
