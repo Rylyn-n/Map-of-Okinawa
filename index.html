@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>沖繩7天行程地圖（真實地形）</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<style>
+  html, body { margin:0; padding:0; height:100%; font-family: "Noto Sans TC", "Microsoft JhengHei", sans-serif; }
+  #toolbar {
+    position: absolute; top: 10px; right: 10px; z-index: 1000;
+    background: white; padding: 10px 14px; border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3); font-size: 14px;
+  }
+  #toolbar button {
+    background: #2E75B6; color: white; border: none; padding: 8px 14px;
+    border-radius: 6px; cursor: pointer; font-size: 14px;
+  }
+  #toolbar button { margin-right: 6px; margin-bottom: 4px; }
+  #toolbar button:hover { background: #1F4E78; }
+  #status { margin-top: 6px; font-size: 12px; color: #666; }
+  #map-wrapper {
+    position: absolute; top:0; bottom:0; left:0; right:0;
+    transform-origin: 50% 50%;
+    transition: transform 0.05s linear;
+  }
+  #map { position: absolute; top:0; bottom:0; left:0; right:0; }
+
+  #legend-drawer {
+    position: absolute; bottom: 20px; left: 10px; z-index: 1000;
+    display: flex; flex-direction: column; align-items: stretch;
+    width: 240px;
+    background: white; border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    overflow: hidden;
+    transition: width 0.25s ease;
+  }
+  #legend-drawer.collapsed { width: 60px; }
+  .legend {
+    padding: 10px 14px; font-size: 13px; line-height: 1.7;
+    white-space: normal;
+    overflow: hidden;
+    max-height: 400px;
+    transition: max-height 0.25s ease, padding-top 0.25s ease, padding-bottom 0.25s ease, opacity 0.2s ease;
+    opacity: 1;
+  }
+  #legend-drawer.collapsed .legend {
+    max-height: 0; padding-top: 0; padding-bottom: 0; opacity: 0;
+  }
+  .legend .title { font-weight: bold; margin-bottom: 4px; display:flex; justify-content:space-between; align-items:center; white-space: nowrap; }
+  .legend .reset-btn {
+    font-size: 11px; color: #2E75B6; cursor: pointer; border: 1px solid #2E75B6;
+    border-radius: 4px; padding: 1px 6px; background: white;
+  }
+  .legend .reset-btn:hover { background: #EAF2FA; }
+  #legend-tab {
+    flex-shrink: 0; width: 100%; height: 28px;
+    background: white; border: none;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 13px; color: #2E75B6;
+    padding: 0;
+  }
+  #legend-tab:hover { background: #f5f5f5; }
+  #legend-tab .arrow {
+    display: inline-block; width: 10px; height: 10px;
+    border-right: 2px solid #888; border-bottom: 2px solid #888;
+    transform: rotate(-135deg);
+    transition: transform 0.25s ease;
+    margin-top: 4px;
+  }
+  #legend-drawer:not(.collapsed) #legend-tab .arrow {
+    transform: rotate(45deg);
+    margin-top: -4px;
+  }
+  .day-item {
+    cursor: pointer; padding: 3px 4px; border-radius: 5px;
+    display: flex; align-items: center; transition: background 0.15s;
+  }
+  .day-item:hover { background: #f0f0f0; }
+  .day-item.active { background: #e6f0fa; font-weight: bold; }
+  .day-item .dot { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:6px; flex-shrink:0; }
+
+  .leaflet-popup-content img {
+    width: 100%; max-width: 220px; height: 130px; object-fit: cover;
+    border-radius: 6px; margin-top: 6px; display:block;
+  }
+  .leaflet-popup-content { margin: 10px 12px; }
+
+  /* ---------- 搜尋列 (左上) ---------- */
+  #search-box {
+    position: absolute; top: 10px; left: 54px; z-index: 1000;
+    width: 250px; max-width: calc(60vw - 44px);
+  }
+  #search-input {
+    width: 100%; box-sizing: border-box; padding: 10px 14px;
+    border: none; border-radius: 24px; font-size: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    outline: none;
+  }
+  #search-results {
+    margin-top: 6px; background: white; border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3); overflow: hidden;
+    max-height: 260px; overflow-y: auto; display: none;
+  }
+  .search-item {
+    padding: 9px 14px; cursor: pointer; font-size: 13.5px;
+    border-bottom: 1px solid #eee; display:flex; align-items:center;
+  }
+  .search-item:last-child { border-bottom: none; }
+  .search-item:hover { background: #f0f4fa; }
+  .search-item .dot { width:10px; height:10px; border-radius:50%; margin-right:8px; flex-shrink:0; }
+  .search-item .day-tag { color:#888; font-size:11.5px; margin-left:6px; }
+  .search-empty { padding: 10px 14px; font-size: 13px; color: #999; }
+
+  /* ---------- Google Maps 風格 圓形按鈕 (右下：定位) ---------- */
+  #locate-btn {
+    position: absolute; bottom: 34px; right: 10px; z-index: 1000;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: white; border: none; cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #locate-btn:hover { background: #f5f5f5; }
+  #locate-btn svg { width: 22px; height: 22px; }
+
+  /* ---------- 指北針 (右上) ---------- */
+  #compass-btn {
+    position: absolute; top: 10px; right: 10px; z-index: 1000;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: white; border: none; cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #compass-btn:hover { background: #f5f5f5; }
+  #compass-needle { width: 26px; height: 26px; transition: transform 0.2s ease-out; }
+
+  /* 工具列往下移，讓出右上角給指北針 */
+  #toolbar { top: 64px; }
+
+  /* 使用者位置圖示（帶方向性） */
+  .user-heading-icon { position: relative; width: 40px; height: 40px; }
+  .user-heading-cone {
+    position: absolute; left: 50%; top: 50%;
+    width: 0; height: 0;
+    border-left: 13px solid transparent;
+    border-right: 13px solid transparent;
+    border-bottom: 26px solid rgba(66,133,244,0.35);
+    transform-origin: 50% 100%;
+    margin-left: -13px; margin-top: -34px;
+  }
+  .user-heading-dot {
+    position: absolute; left: 50%; top: 50%;
+    width: 16px; height: 16px; margin-left: -8px; margin-top: -8px;
+    background: #4285F4; border: 3px solid white; border-radius: 50%;
+    box-shadow: 0 0 4px rgba(0,0,0,0.4);
+  }
+
+  /* ---------- 手機版：加大按鈕與文字，方便觸控 ---------- */
+  @media (max-width: 600px) {
+    #search-box { top: 8px; left: 50px; width: calc(100vw - 110px); max-width: none; }
+    #search-input { padding: 12px 16px; font-size: 16px; }
+    #search-results { max-height: 40vh; }
+    .search-item { padding: 13px 14px; font-size: 15px; }
+
+    #compass-btn { width: 52px; height: 52px; top: 8px; right: 8px; }
+    #compass-needle { width: 30px; height: 30px; }
+
+    #locate-btn { width: 54px; height: 54px; bottom: 60px; right: 8px; }
+    #locate-btn svg { width: 26px; height: 26px; }
+
+    #toolbar { top: 68px; right: 8px; padding: 10px 12px; max-width: 55vw; }
+    #toolbar button { font-size: 13px; padding: 9px 12px; }
+    #status { font-size: 11.5px; }
+
+    .legend { font-size: 14px; padding: 10px 12px; }
+    #legend-drawer { left: 8px; bottom: 16px; width: 72vw; }
+    #legend-drawer.collapsed { width: 60px; }
+    #legend-tab { height: 34px; }
+    .day-item { padding: 7px 6px; font-size: 14px; }
+    .day-item .dot { width:14px; height:14px; }
+
+    .leaflet-control-zoom a { width: 36px !important; height: 36px !important; line-height: 36px !important; font-size: 18px !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="search-box">
+  <input id="search-input" type="text" placeholder="🔍 搜尋景點、飯店，或輸入 Day1~Day7">
+  <div id="search-results"></div>
+</div>
+
+<button id="compass-btn" onclick="resetNorth()" title="點擊重置為北方朝上">
+  <svg id="compass-needle" viewBox="0 0 24 24">
+    <polygon points="12,2 15,12 12,10 9,12" fill="#E24C4C"/>
+    <polygon points="12,22 15,12 12,14 9,12" fill="#9AA0A6"/>
+  </svg>
+</button>
+
+<button id="locate-btn" onclick="locateMe()" title="定位我的位置">
+  <svg viewBox="0 0 24 24" fill="none" stroke="#4285F4" stroke-width="2">
+    <circle cx="12" cy="12" r="3" fill="#4285F4" stroke="none"/>
+    <line x1="12" y1="1" x2="12" y2="4"/>
+    <line x1="12" y1="20" x2="12" y2="23"/>
+    <line x1="1" y1="12" x2="4" y2="12"/>
+    <line x1="20" y1="12" x2="23" y2="12"/>
+    <circle cx="12" cy="12" r="7"/>
+  </svg>
+</button>
+
+<div id="toolbar">
+  <button onclick="exportMap()">📷 匯出目前畫面為圖片</button>
+  <div id="status">滑鼠移到天數可預覽，點擊天數會持續標示並移動視野到該天全部地點</div>
+</div>
+
+<div id="map-wrapper"><div id="map"></div></div>
+
+<div id="legend-drawer" class="collapsed">
+  <button id="legend-tab" onclick="toggleLegend()"><span class="arrow"></span></button>
+  <div class="legend" id="legend"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-image/0.0.4/leaflet-image.js"></script>
+<script>
+const dayColors = {
+  1: "#4E79A7", 2: "#F28E2B", 3: "#E15759", 4: "#76B7B2",
+  5: "#59A14F", 6: "#EDC948", 7: "#B07AA1"
+};
+const dayLabels = {
+  1: "Day1 抵達．國際通", 2: "Day2 波上宮．瀨長島", 3: "Day3 北部一日遊",
+  4: "Day4 首里城．國際通", 5: "Day5 換飯店．美國村．來客夢",
+  6: "Day6 中部歷史散策", 7: "Day7 賦歸"
+};
+
+// [名稱, 緯度, 經度, 天數, 備註, 照片網址(可為空字串)]
+const points = [
+  ["那霸機場", 26.2001297, 127.6466452, 1, "17:35抵達 / Day7 10:40回程",
+    "https://lh3.googleusercontent.com/place-photos/AG9NLjBJcVITAdbg1DlIkAMEln9ad_ui1nge3A2xWOP66Qt1J32NFQgtJMlbLTuqX6FB8hDZLvJ0KAIU6Opccal_QmmXCxx9yqNsGTNktCZPTaueWe_6eY9B8xodQp8Wsp5CUNCO8GlviYTdzV5ngoU=s800"],
+  ["Hewitt Resort Naha", 26.2180737, 127.695838, 1, "入住4晚",
+    "https://lh3.googleusercontent.com/place-photos/AG9NLjCOpnKJfEnotNi3rvGm6gC5qn9zvozxqwmxWipm-zDXWxtbAolwyBfmJgkxsXUIvYQUL4Zhs9HJwmLtgiZWhlI7GdcbCs8Y3by0LvzJsK0MR2A_rdxXxZuPzTroQE8eWbOVsEWttQWBd1JuMkI=s800"],
+  ["國際通屋台村", 26.2167026, 127.690478, 1, "晚餐(居酒屋)",
+    "https://lh3.googleusercontent.com/place-photos/AG9NLjAXzEXI9yUmaVNChbdrht34YmggMcyaKajfVDf2y6uu7CRGcmW5aVHDzJtthUasKRrIpTGsq7N0ZcZW9FowDZdx1KLXqWBSVRtyF4xI8X-r57lst1vmNIEE9hH8urRgfbveest7283ywddUPRZ5I0ixGA=s800"],
+  ["波上宮", 26.2207369, 127.6711012, 2, "10:00",
+    "https://lh3.googleusercontent.com/place-photos/AG9NLjCKv8RlnM0JzxYGwcxoG2ebagDE5ByCcdd0Y0j3vbBNtwiz-lNzVgv55xmlAqu6P6mkTOUe3YvrzdVIi9Fqt2urqAz2LxmwWvpq7o0i0OJr8oNpjNfeI9DaaZay-WjnfSnU2A3OrDzV3c_yrd2bnjY0=s800"],
+  ["瀨長島 Umikaji Terrace", 26.1765465, 127.6404145, 2, "12:00",
+    "https://lh3.googleusercontent.com/place-photos/AG9NLjB2-2-dS1yg29TZrlwwSfknMYqxtxTa4lNTQwHbAeWVrYpUFL1oc-sz6byYsiIH1GVf209jITN6UspGfq0qXZHB4-S4SVF2HI5gQIrirEdxksegg_3G8GGYip8alwPQKMp2yuDfHySxLvWKhpU=s800"],
+  ["DMM Kariyushi水族館", 26.1563877, 127.6506782, 2, "15:00",
+    "https://lh3.googleusercontent.com/place-photos/AG9NLjBrKpDw90E1P8XUUR2WBPPPPyfRLhs2HW93LNGMkHyJwZxlk9NKDL9lHJTyZsbhb3HuAGiWtnNuX1OEIvk6WwLi2DwTFmvT3O7twNYsmMpURGweiUCIxGHVPpQx57GfowGGC-RuiJnz0E0SPw=s800"],
+  ["第一牧志公設市場", 26.2145927, 127.6883013, 2, "18:00",
+    "https://lh3.googleusercontent.com/place-photos/AG9NLjC0JroafQ6GRwP3KNu7jiNhX6sqXm5rzRLinpP1ay0mCDM2ettzYxSLcXwaJgsbWa4nCvZmvh3zFNtv-OeefKPM44YnvKPvbweSkHf7SIDNaEriu15FfBWQseXrWn0zXObZxK2MrFMhSTQn0g=s800"],
+  ["古宇利島", 26.7072982, 128.0181686, 3, "北部一日遊",
+    "https://lh3.googleusercontent.com/place-photos/AG9NLjAiPHzX9w1FigfV_ocTOfYU1ircVlAbEEZtpOrA3kK-anrlSNdpnjfv76ClZb3kPK9PPoZRbgWX5vk_KRPrDp_XU7oMEEMxsJy_j6fDlsDLn9V6jLY_PNgjhNQGq15T12cp7Gcf1rfehnrO30w=s800"],
+  ["萬座毛", 26.5052353, 127.8504781, 3, "北部一日遊",
+    "https://lh3.googleusercontent.com/place-photos/AG9NLjDe6lMeGaTyNtoA-IvptCtSjkeN3pUla2IgD0v2bLu2QMwENDNawmbvm2T56SWUmJYv1wd_WecBRfY0q-3XuvHgbUZuzZ3hhcNMBDGQ7I1HBsU36BoVp6SBKdVJRtTrylomZdE92O4B1gOOV8pFwEDQtA=s800"],
+  ["美國村", 26.3158768, 127.7540067, 3, "Day3晚上(A) / Day5晚上(B)",
+    "https://lh3.googleusercontent.com/place-photos/AG9NLjBYtJyTROG8KOF9OhSC4_J616tuL_UQKpr7bczfNQBGcvLKAcPLx3fX-K_c7w50Xq46QUIT-IA8ZtxkoELBjWSM0CLTlqQIdKproiwdDKk2L8hmezh0yN4NfdW1tV6ipOt7Iaj7Qpjif3R0yQ=s800"],
+  ["首里城", 26.2170449, 127.7194833, 4, "10:00",
+    "https://lh3.googleusercontent.com/place-photos/AG9NLjCoWpITYGHJrlyTuLDsjqHC6rqP9Y322_NAlimONGEFFdRkbliEVnRKXaTq1sC1tVrnGtFe_BbASbqhpMFMKINNaNbjAcgr5AZTgBJiZBOHEsycKunQHhzdA-f3L0ABUoc_62LxW7g8RwLGSrZfV8ML1A=s800"],
+  ["西來院(達摩寺)", 26.2177306, 127.7225639, 4, "12:00",
+    "https://lh3.googleusercontent.com/place-photos/AG9NLjA_60s8p-ThD3Ck1eV3XVE8ww3AsbWPZ-uZ6RzeNu-YoK1UwPlAre54gU-DLmA5YnlnpFC1JEB_6t4ntdDIwJvSqMTUdYaawxR4G5bdFtIdl8dSCK6d-O876yJwkOe9u3iNZkBorE8a6QMZ9GMveROT=s800"],
+  ["國際通", 26.2154644, 127.6857013, 4, "14:00", ""],
+  ["Echizen越前", 26.2272583, 127.6985794, 4, "19:00 螃蟹大餐",
+    "https://lh3.googleusercontent.com/place-photos/AG9NLjChKClPlpCCBgAF8eVFi8Bu2rGeZo_7FHR0WvG5zmTK85MiGF4YRMzGXoAH-hXHiNLOmyc0NGB6dtb0pQYRjDyTs8JlFxUtgjNctgdSzGHN4Ne6rnUo-Z12Bw0NlvhFhrfgJCO1caIPK4SLQH7ZIgln_A=s800"],
+  ["沖繩王子大飯店 海景宜野灣", 26.2769526, 127.7324471, 5, "換飯店入住2晚",
+    "https://lh3.googleusercontent.com/place-photos/AG9NLjBWjqnZkDXUFCZ-avotosMiU-lTHWiUWMtis8pN2k-3EZRaFF3yuNOM8JiYbaZI9DYbS2GPd4CB20DOPd-xqdJhFWTqn5BDbweUp0FW2jkBtamluCN1sSpYyTAv38vY09be-Z4uEPjF2rq0pdTaFI2Iow=s800"],
+  ["永旺夢樂城來客夢", 26.3145118, 127.7965482, 5, "晚上(寶可夢中心)",
+    "https://lh3.googleusercontent.com/place-photos/AG9NLjBYLPBrKqWF0vMQ7fq_Fq_iONznr77MBerVreDYvqp2MsLX6QElc3o0mW3DmxuPpGZZ-rO3UYdAn4LYub8SLiP3v8JOk4hSInpd1EFJESXc_DEAsohfLV5Iggk7qypKOskoHIps0po4XX-hZQ=s800"],
+  ["A&W牧港店", 26.2666387, 127.7284454, 6, "9:00早餐",
+    "https://lh3.googleusercontent.com/place-photos/AG9NLjAf_svZjVJ0sPJVt6nRsTc5GXLtRacdul1OSr7GGorbLV8YkH4glRO1wUwompyN_JlPwDW-VWuT63pTCozUosMYH9mJr3bSBfVJ6WgeT2hakHSNVeH4tk7ArlLMt1-aqB-ZD-2hOMHwnzwx=s800"],
+  ["中城城", 26.2835007, 127.7996708, 6, "13:00世界遺產",
+    "https://lh3.googleusercontent.com/place-photos/AG9NLjBwb9q9dnxsXlHzLOEVmghT-AclbT-_rulMbamq2NSMu8nuhDnoEGqQjvJ4N6s1DOgosNU_NkRsyc6wDcrGbN4tXXcpMV8O9xDbRGsGy2aEkMHwmM3xkilYA_E3x4g2FElQ3Qe36lADEBCpyA=s800"],
+  ["港川外人住宅", 26.2625264, 127.714602, 6, "14:30",
+    "https://lh3.googleusercontent.com/place-photos/AG9NLjCGIi54aRpQWKGHNwXPUqv4OTJPwQSJzlLg-uMeS7YdFJtX_8LG2EJTBK47_3VVAJhK1uPKBoHY5-fNh8RHrFlcrYaqfXfSDp_a-UXOqJCKptsp4idoWqSxslChroRYa-Wois5ophHpTj01OQ=s800"],
+  ["PARCO CITY", 26.2617542, 127.6981799, 6, "18:00",
+    "https://lh3.googleusercontent.com/place-photos/AG9NLjDM3wIpL9jlRT-8vGAPEbdnrnVUpOiMFMDZPrl4PvWlnJPpUOGVhuIgNJfeNoWSXfOBaFApQ-2-biB94Jqc35BSQccdWU-tisvRxAWW3iF4xcfpSRWX-GKwjGS3qeAIRdosRgxGS2VyaAoABq54tOB3pQ=s800"],
+  ["那霸機場（賦歸）", 26.1985, 127.6490, 7, "10:40抵達 / 13:20飛機起飛回台灣",
+    "https://lh3.googleusercontent.com/place-photos/AG9NLjBJcVITAdbg1DlIkAMEln9ad_ui1nge3A2xWOP66Qt1J32NFQgtJMlbLTuqX6FB8hDZLvJ0KAIU6Opccal_QmmXCxx9yqNsGTNktCZPTaueWe_6eY9B8xodQp8Wsp5CUNCO8GlviYTdzV5ngoU=s800"]
+];
+
+const map = L.map('map', { attributionControl: true }).setView([26.42, 127.85], 10);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  crossOrigin: true,
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+const bounds = [];
+const markersByDay = {};   // day -> [ {marker, label(tooltip)} ]
+const allMarkers = [];
+
+points.forEach(([name, lat, lon, day, note, photoUrl]) => {
+  const color = dayColors[day];
+  const marker = L.circleMarker([lat, lon], {
+    radius: 9,
+    fillColor: color,
+    color: "#ffffff",
+    weight: 2,
+    fillOpacity: 0.95
+  }).addTo(map);
+
+  marker.bindTooltip(name, {
+    permanent: false,
+    direction: "top",
+    className: "marker-label",
+    offset: [0, -8]
+  });
+
+  const photoHtml = photoUrl
+    ? `<img src="${photoUrl}" alt="${name}" loading="lazy">`
+    : "";
+  marker.bindPopup(`<b>[Day ${day}] ${name}</b><br>${note}${photoHtml}`, { maxWidth: 240 });
+
+  bounds.push([lat, lon]);
+  if (!markersByDay[day]) markersByDay[day] = [];
+  markersByDay[day].push(marker);
+  allMarkers.push({marker, day});
+});
+
+map.fitBounds(bounds, { padding: [40, 40] });
+
+let activeDay = null;
+let pinnedDay = null;
+
+function clearHighlight() {
+  allMarkers.forEach(({marker}) => {
+    if (marker.isTooltipOpen()) marker.closeTooltip();
+    marker.setStyle({ radius: 9, fillOpacity: 0.95, weight: 2 });
+  });
+}
+
+function highlightDay(day) {
+  allMarkers.forEach(({marker, day: d}) => {
+    if (d == day) {
+      marker.setStyle({ radius: 12, fillOpacity: 1, weight: 3 });
+      marker.openTooltip();
+    } else {
+      marker.setStyle({ radius: 7, fillOpacity: 0.35, weight: 1 });
+      if (marker.isTooltipOpen()) marker.closeTooltip();
+    }
+  });
+}
+
+function updateActiveClasses(day) {
+  document.querySelectorAll('.day-item').forEach(el => {
+    el.classList.toggle('active', day != null && el.dataset.day == day);
+  });
+}
+
+function enterDay(day) {
+  activeDay = day;
+  highlightDay(day);
+  updateActiveClasses(day);
+}
+
+function leaveDay() {
+  activeDay = null;
+  if (pinnedDay != null) {
+    highlightDay(pinnedDay);
+    updateActiveClasses(pinnedDay);
+  } else {
+    clearHighlight();
+    updateActiveClasses(null);
+  }
+}
+
+function clickDay(day) {
+  if (pinnedDay === day) {
+    // 再次點同一天 -> 取消釘選
+    pinnedDay = null;
+    clearHighlight();
+    updateActiveClasses(null);
+  } else {
+    pinnedDay = day;
+    highlightDay(day);
+    updateActiveClasses(day);
+
+    // 將視野移動到該天所有地點範圍
+    const dayBounds = allMarkers
+      .filter(({day: d}) => d == day)
+      .map(({marker}) => marker.getLatLng());
+    if (dayBounds.length === 1) {
+      map.setView(dayBounds[0], 15);
+    } else if (dayBounds.length > 1) {
+      map.fitBounds(dayBounds, { padding: [60, 60] });
+    }
+  }
+}
+
+function resetAll() {
+  pinnedDay = null;
+  activeDay = null;
+  clearHighlight();
+  updateActiveClasses(null);
+  map.fitBounds(bounds, { padding: [40, 40] });
+}
+
+// 建立圖例：滑過(hover)預覽，點擊(click)持續釘選
+const legendEl = document.getElementById('legend');
+let legendHtml = `<div class="title">天數圖例 <span class="reset-btn" onclick="resetAll()">顯示全部</span></div>`;
+Object.keys(dayLabels).forEach(d => {
+  if (points.some(p => p[3] == d)) {
+    legendHtml += `<div class="day-item" data-day="${d}"
+      onmouseenter="enterDay(${d})" onmouseleave="leaveDay()" onclick="clickDay(${d})">
+      <span class="dot" style="background:${dayColors[d]}"></span>${dayLabels[d]}
+    </div>`;
+  }
+});
+legendEl.innerHTML = legendHtml;
+
+function toggleLegend() {
+  const drawer = document.getElementById('legend-drawer');
+  drawer.classList.toggle('collapsed');
+}
+
+// ---------------- 搜尋功能 ----------------
+const searchInput = document.getElementById('search-input');
+const searchResults = document.getElementById('search-results');
+
+function renderSearchResults(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) {
+    searchResults.style.display = 'none';
+    searchResults.innerHTML = '';
+    return;
+  }
+
+  // 支援輸入 "day3" / "d3" / "3" / "第3天" 直接篩選整天，或輸入地點名稱模糊搜尋
+  const dayMatch = q.match(/^(?:day\s*|d)?(\d)(?:\s*天)?$/i) || q.match(/^第(\d)天$/);
+  let matches;
+  if (dayMatch) {
+    const targetDay = dayMatch[1];
+    matches = points.filter(p => String(p[3]) === targetDay);
+  } else {
+    matches = points.filter(p =>
+      p[0].toLowerCase().includes(q) ||
+      (dayLabels[p[3]] && dayLabels[p[3]].toLowerCase().includes(q))
+    );
+  }
+
+  if (matches.length === 0) {
+    searchResults.innerHTML = `<div class="search-empty">找不到符合「${query}」的地點</div>`;
+    searchResults.style.display = 'block';
+    return;
+  }
+  searchResults.innerHTML = matches.map(([name, lat, lon, day]) => `
+    <div class="search-item" data-lat="${lat}" data-lon="${lon}" data-name="${name}">
+      <span class="dot" style="background:${dayColors[day]}"></span>
+      <span>${name}</span>
+      <span class="day-tag">Day${day}</span>
+    </div>
+  `).join('');
+  searchResults.style.display = 'block';
+}
+
+searchInput.addEventListener('input', (e) => renderSearchResults(e.target.value));
+searchInput.addEventListener('focus', (e) => { if (e.target.value) renderSearchResults(e.target.value); });
+
+searchResults.addEventListener('click', (e) => {
+  const item = e.target.closest('.search-item');
+  if (!item || !item.dataset.lat) return;
+  const lat = parseFloat(item.dataset.lat);
+  const lon = parseFloat(item.dataset.lon);
+  const name = item.dataset.name;
+
+  map.setView([lat, lon], 16);
+  const found = allMarkers.find(({marker}) => {
+    const ll = marker.getLatLng();
+    return Math.abs(ll.lat - lat) < 1e-6 && Math.abs(ll.lng - lon) < 1e-6;
+  });
+  if (found) {
+    found.marker.openPopup();
+  }
+  searchInput.value = name;
+  searchResults.style.display = 'none';
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#search-box')) {
+    searchResults.style.display = 'none';
+  }
+});
+
+function exportMap() {
+  document.getElementById('status').innerText = "匯出中，請稍候...";
+  leafletImage(map, function(err, canvas) {
+    if (err) {
+      document.getElementById('status').innerText = "匯出失敗，請改用瀏覽器截圖 (Win: Win+Shift+S / Mac: Cmd+Shift+4)";
+      console.error(err);
+      return;
+    }
+    const link = document.createElement('a');
+    link.download = '沖繩7天行程地圖_實景.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    document.getElementById('status').innerText = "已匯出！若沒反應請改用瀏覽器截圖";
+  });
+}
+
+// ---------------- 定位功能（含方向性圖示，仿 Google Maps） ----------------
+let userMarker = null;
+let userAccuracyCircle = null;
+let currentHeading = null;
+let compassActive = false;
+
+function makeUserIcon(heading) {
+  const rotation = (heading == null) ? 0 : heading;
+  const coneHtml = (heading == null) ? "" :
+    `<div class="user-heading-cone" style="transform: rotate(${rotation}deg);"></div>`;
+  return L.divIcon({
+    className: '',
+    html: `<div class="user-heading-icon">${coneHtml}<div class="user-heading-dot"></div></div>`,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20]
+  });
+}
+
+function locateMe() {
+  const statusEl = document.getElementById('status');
+  if (!navigator.geolocation) {
+    statusEl.innerText = "此瀏覽器不支援定位功能";
+    return;
+  }
+  statusEl.innerText = "定位中，請允許瀏覽器存取你的位置...";
+
+  // iOS 13+ 需要明確請求方向感應權限（需在使用者互動事件內呼叫）
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    DeviceOrientationEvent.requestPermission().then(state => {
+      if (state === 'granted') startCompass();
+    }).catch(() => {});
+  } else {
+    startCompass();
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      const accuracy = pos.coords.accuracy;
+      if (pos.coords.heading != null && !isNaN(pos.coords.heading)) {
+        currentHeading = pos.coords.heading;
+      }
+
+      if (userMarker) map.removeLayer(userMarker);
+      if (userAccuracyCircle) map.removeLayer(userAccuracyCircle);
+
+      userAccuracyCircle = L.circle([lat, lon], {
+        radius: accuracy,
+        color: "#4285F4",
+        fillColor: "#4285F4",
+        fillOpacity: 0.12,
+        weight: 1
+      }).addTo(map);
+
+      userMarker = L.marker([lat, lon], {
+        icon: makeUserIcon(currentHeading),
+        zIndexOffset: 1000
+      }).addTo(map);
+      userMarker.bindPopup("📍 你目前的位置");
+
+      map.setView([lat, lon], 16);
+      statusEl.innerText = "已定位到你目前的位置";
+    },
+    (err) => {
+      let msg = "無法取得你的位置";
+      if (err.code === 1) msg = "定位被拒絕，請到瀏覽器設定允許此網頁存取位置";
+      else if (err.code === 2) msg = "無法取得位置資訊（訊號問題）";
+      else if (err.code === 3) msg = "定位逾時，請再試一次";
+      statusEl.innerText = msg;
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+
+  // 持續追蹤位置與方向（watchPosition 取得移動方向）
+  navigator.geolocation.watchPosition(
+    (pos) => {
+      if (pos.coords.heading != null && !isNaN(pos.coords.heading)) {
+        currentHeading = pos.coords.heading;
+        if (userMarker) userMarker.setIcon(makeUserIcon(currentHeading));
+      }
+    },
+    () => {},
+    { enableHighAccuracy: true }
+  );
+}
+
+function startCompass() {
+  if (compassActive) return;
+  compassActive = true;
+  const handler = (e) => {
+    let heading = null;
+    if (typeof e.webkitCompassHeading === 'number') {
+      heading = e.webkitCompassHeading;               // iOS Safari：已是正確指北方位
+    } else if (e.absolute && e.alpha != null) {
+      heading = (360 - e.alpha) % 360;                 // Android：alpha 逆時針，需轉換
+    }
+    if (heading != null) {
+      currentHeading = heading;
+      if (userMarker) userMarker.setIcon(makeUserIcon(currentHeading));
+      // 注意：指北針現在改為反映雙指旋轉畫面的角度，不再跟裝置方向感應連動
+    }
+  };
+  window.addEventListener('deviceorientationabsolute', handler, true);
+  window.addEventListener('deviceorientation', handler, true);
+}
+
+function resetNorth() {
+  // 重置畫面視覺旋轉角度，回到北方朝上
+  setMapRotation(0);
+  document.getElementById('status').innerText = "已重置為北方朝上";
+}
+
+// ---------------- 雙指旋轉（純視覺效果，用 CSS transform 旋轉地圖畫面） ----------------
+const mapWrapper = document.getElementById('map-wrapper');
+let mapRotation = 0;         // 目前畫面旋轉角度（度）
+let rotateStartAngle = 0;    // 手勢開始時兩指的夾角
+let rotateStartRotation = 0; // 手勢開始時畫面原本的旋轉角度
+let isRotating = false;
+
+function setMapRotation(deg) {
+  mapRotation = ((deg % 360) + 360) % 360;
+  mapWrapper.style.transform = `rotate(${mapRotation}deg)`;
+  // 指北針反向旋轉，永遠指向真正的北方（仿 Google Maps）
+  const needle = document.getElementById('compass-needle');
+  if (needle) needle.style.transform = `rotate(${-mapRotation}deg)`;
+}
+
+function angleBetweenTouches(touches) {
+  const dx = touches[1].clientX - touches[0].clientX;
+  const dy = touches[1].clientY - touches[0].clientY;
+  return Math.atan2(dy, dx) * 180 / Math.PI;
+}
+
+mapWrapper.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 2) {
+    isRotating = true;
+    rotateStartAngle = angleBetweenTouches(e.touches);
+    rotateStartRotation = mapRotation;
+  }
+}, { passive: true });
+
+mapWrapper.addEventListener('touchmove', (e) => {
+  if (isRotating && e.touches.length === 2) {
+    const currentAngle = angleBetweenTouches(e.touches);
+    const delta = currentAngle - rotateStartAngle;
+    setMapRotation(rotateStartRotation + delta);
+  }
+}, { passive: true });
+
+mapWrapper.addEventListener('touchend', (e) => {
+  if (e.touches.length < 2) isRotating = false;
+}, { passive: true });
+
+mapWrapper.addEventListener('touchcancel', () => { isRotating = false; }, { passive: true });
+</script>
+</body>
+</html>
