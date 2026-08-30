@@ -29,13 +29,14 @@
     white-space: normal;
     overflow: hidden;
     max-height: 400px;
-    transition: max-height 0.25s ease, padding-top 0.25s ease, padding-bottom 0.25s ease, opacity 0.2s ease;
+    transition: max-height 0.25s ease, padding-top 0.25s ease, padding-bottom 0.25s ease, opacity 0.35s ease;
     opacity: 1;
   }
   #legend-drawer.collapsed .legend {
     max-height: 0; padding-top: 0; padding-bottom: 0; opacity: 0;
     box-shadow: none; pointer-events: none;
   }
+  #legend-drawer.faded .legend { opacity: 0.35; }
   .legend .title { font-weight: bold; margin-bottom: 4px; display:flex; justify-content:space-between; align-items:center; white-space: nowrap; }
   .legend .reset-btn {
     font-size: 11px; color: #2E75B6; cursor: pointer; border: 1px solid #2E75B6;
@@ -408,11 +409,13 @@ function getDrawerCoverHeight() {
 }
 
 function clickDay(day) {
+  const drawer = document.getElementById('legend-drawer');
   if (pinnedDay === day) {
     // 再次點同一天 -> 取消釘選
     pinnedDay = null;
     clearHighlight();
     updateActiveClasses(null);
+    drawer.classList.remove('faded');
   } else {
     pinnedDay = day;
     highlightDay(day);
@@ -431,6 +434,10 @@ function clickDay(day) {
         maxZoom: 16
       });
     }
+
+    // 延遲到這次點擊事件完全處理完之後才淡化，避免被下面「點面板內恢復不透明」的
+    // 監聽器在同一次點擊裡立刻取消掉
+    setTimeout(() => drawer.classList.add('faded'), 0);
   }
 }
 
@@ -440,6 +447,7 @@ function resetAll() {
   clearHighlight();
   updateActiveClasses(null);
   map.fitBounds(bounds, { padding: [40, 40] });
+  document.getElementById('legend-drawer').classList.remove('faded');
 }
 
 // 建立圖例：滑過(hover)預覽，點擊(click)持續釘選
@@ -458,6 +466,7 @@ legendEl.innerHTML = legendHtml;
 function toggleLegend() {
   const drawer = document.getElementById('legend-drawer');
   drawer.classList.toggle('collapsed');
+  drawer.classList.remove('faded');
 }
 
 // 點擊面板以外的地方（彈出視窗 popup 除外）就自動收回面板
@@ -467,6 +476,12 @@ document.addEventListener('click', (e) => {
   if (e.target.closest('#legend-drawer')) return;      // 點的是面板自己（含箭頭、天數清單）
   if (e.target.closest('.leaflet-popup')) return;       // 點的是彈出視窗，不收回
   drawer.classList.add('collapsed');
+  drawer.classList.remove('faded');
+});
+
+// 點擊面板「內部」任何地方，恢復成不透明
+document.getElementById('legend-drawer').addEventListener('click', () => {
+  document.getElementById('legend-drawer').classList.remove('faded');
 });
 
 // ---------------- 搜尋功能 ----------------
