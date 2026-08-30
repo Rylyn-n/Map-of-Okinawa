@@ -445,6 +445,15 @@ function toggleLegend() {
   drawer.classList.toggle('collapsed');
 }
 
+// 點擊面板以外的地方（彈出視窗 popup 除外）就自動收回面板
+document.addEventListener('click', (e) => {
+  const drawer = document.getElementById('legend-drawer');
+  if (drawer.classList.contains('collapsed')) return; // 已經是收起狀態，不用處理
+  if (e.target.closest('#legend-drawer')) return;      // 點的是面板自己（含箭頭、天數清單）
+  if (e.target.closest('.leaflet-popup')) return;       // 點的是彈出視窗，不收回
+  drawer.classList.add('collapsed');
+});
+
 // ---------------- 搜尋功能 ----------------
 const searchInput = document.getElementById('search-input');
 const searchResults = document.getElementById('search-results');
