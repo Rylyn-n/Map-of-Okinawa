@@ -306,7 +306,10 @@ points.forEach(([name, lat, lon, day, note, photoUrl]) => {
     : "";
   marker.bindPopup(`<b>[Day ${day}] ${name}</b><br>${note}${photoHtml}`, { maxWidth: 240 });
 
-  // 點擊白色名稱標籤時，也顯示備註內容（跟點原點一樣打開 popup）
+  // 點擊地圖上的地點（圓點本身）時，自動收回上拉面板
+  marker.on('click', collapseLegendDrawer);
+
+  // 點擊白色名稱標籤時，也顯示備註內容（跟點原點一樣打開 popup），同樣收回面板
   marker.on('tooltipopen', (e) => {
     const el = e.tooltip.getElement();
     if (el) {
@@ -315,6 +318,7 @@ points.forEach(([name, lat, lon, day, note, photoUrl]) => {
         L.DomEvent.stopPropagation(evt);
         L.DomEvent.preventDefault(evt);
         marker.openPopup();
+        collapseLegendDrawer();
       });
       L.DomEvent.disableClickPropagation(el);
 
@@ -469,14 +473,18 @@ function toggleLegend() {
   drawer.classList.remove('faded');
 }
 
-// 點擊面板以外的地方（彈出視窗 popup 除外）就自動收回面板
-document.addEventListener('click', (e) => {
+function collapseLegendDrawer() {
   const drawer = document.getElementById('legend-drawer');
-  if (drawer.classList.contains('collapsed')) return; // 已經是收起狀態，不用處理
-  if (e.target.closest('#legend-drawer')) return;      // 點的是面板自己（含箭頭、天數清單）
-  if (e.target.closest('.leaflet-popup')) return;       // 點的是彈出視窗，不收回
+  if (drawer.classList.contains('collapsed')) return;
   drawer.classList.add('collapsed');
   drawer.classList.remove('faded');
+}
+
+// 點擊面板以外的地方（彈出視窗 popup 除外）就自動收回面板
+document.addEventListener('click', (e) => {
+  if (e.target.closest('#legend-drawer')) return;      // 點的是面板自己（含箭頭、天數清單）
+  if (e.target.closest('.leaflet-popup')) return;       // 點的是彈出視窗，不收回
+  collapseLegendDrawer();
 });
 
 // 點擊面板「內部」任何地方，恢復成不透明
@@ -667,6 +675,7 @@ searchResults.addEventListener('click', (e) => {
     // 線上搜尋結果：用臨時標記顯示，一次只保留一個
     if (tempSearchMarker) map.removeLayer(tempSearchMarker);
     tempSearchMarker = L.marker([lat, lon]).addTo(map);
+    tempSearchMarker.on('click', collapseLegendDrawer); // 點擊地圖上的這個臨時標記時也收回面板
 
     const idx = parseInt(item.dataset.idx, 10);
     const result = lastOnlineResults[idx];
