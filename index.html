@@ -396,6 +396,17 @@ function leaveDay() {
   }
 }
 
+function getDrawerCoverHeight() {
+  // 面板展開時會蓋住畫面下方，計算目前面板實際佔用的高度，
+  // 讓地圖自動縮放時把這塊區域排除在外，避免地點被面板蓋住。
+  const drawer = document.getElementById('legend-drawer');
+  if (drawer.classList.contains('collapsed')) return 0;
+  const legend = document.getElementById('legend');
+  const rect = legend.getBoundingClientRect();
+  if (rect.height === 0) return 0;
+  return (window.innerHeight - rect.top) + 16; // 面板高度 + 一點緩衝空間
+}
+
 function clickDay(day) {
   if (pinnedDay === day) {
     // 再次點同一天 -> 取消釘選
@@ -407,14 +418,18 @@ function clickDay(day) {
     highlightDay(day);
     updateActiveClasses(day);
 
-    // 將視野移動到該天所有地點範圍
+    // 將視野移動到該天所有地點範圍，並避開下方面板遮住的區域
     const dayBounds = allMarkers
       .filter(({day: d}) => d == day)
       .map(({marker}) => marker.getLatLng());
-    if (dayBounds.length === 1) {
-      map.setView(dayBounds[0], 15);
-    } else if (dayBounds.length > 1) {
-      map.fitBounds(dayBounds, { padding: [60, 60] });
+    const bottomPad = 60 + getDrawerCoverHeight();
+    if (dayBounds.length > 0) {
+      // 統一用 fitBounds 處理（單一地點也適用），maxZoom 避免縮太近
+      map.fitBounds(L.latLngBounds(dayBounds), {
+        paddingTopLeft: [60, 60],
+        paddingBottomRight: [60, bottomPad],
+        maxZoom: 16
+      });
     }
   }
 }
