@@ -110,7 +110,8 @@
   .map-caption{font-size:12px; color:#7a7362; margin-top:8px; padding:0 2px;}
 
   /* wishlist accordion */
-  .wishlist{margin-top:30px; border-top:1px solid var(--line); padding-top:18px;}
+  .wishlist{margin-top:22px; border-top:1px solid var(--line); padding-top:18px;}
+  .wishlist + .wishlist{margin-top:0;}
   .wishlist summary{cursor:pointer; font-family:'Noto Serif TC',serif; font-size:18px; font-weight:700; color:var(--ink); list-style:none; display:flex; align-items:center; gap:8px;}
   .wishlist summary::-webkit-details-marker{display:none;}
   .wishlist summary::before{content:"▸"; color:var(--coral); transition:transform 0.18s ease;}
@@ -118,6 +119,11 @@
   .wish-grid{display:grid; grid-template-columns:110px 1fr; gap:9px 16px; margin-top:14px; font-size:13.5px;}
   .wish-grid dt{color:var(--ocean-deep); font-weight:700;}
   .wish-grid dd{margin:0; color:#4b4b4b; line-height:1.6;}
+  .list-rows{margin-top:14px; display:flex; flex-direction:column; gap:2px;}
+  .list-row{display:flex; justify-content:space-between; gap:14px; padding:8px 0; border-bottom:1px solid #F0EADA; font-size:13.5px;}
+  .list-row:last-child{border-bottom:none;}
+  .list-row .name{font-weight:700; color:var(--ink);}
+  .list-row .note{color:#8a8370; text-align:right; flex-shrink:0;}
 
   /* ================= EXPENSE DRAWER ================= */
   .fab{
@@ -198,6 +204,34 @@
           <dt>住宿</dt><dd>那霸市區（4晚）／宜野灣（2晚）</dd>
         </dl>
       </details>
+
+      <details class="wishlist">
+        <summary>想吃的沖繩美食</summary>
+        <div class="list-rows">
+          <div class="list-row"><span class="name">Blue Seal 牧港店</span><span class="note">冰淇淋</span></div>
+          <div class="list-row"><span class="name">A&W 牧港店</span><span class="note">美式漢堡</span></div>
+          <div class="list-row"><span class="name">Pork Tamago Onigiri Makishi Market 牧志市場店</span><span class="note">豬肉蛋飯糰</span></div>
+          <div class="list-row"><span class="name">MIA風獅爺奶油餅</span><span class="note">國際通</span></div>
+          <div class="list-row"><span class="name">沖繩麵 EIBUN</span><span class="note">國際通</span></div>
+          <div class="list-row"><span class="name">Yuunangi ゆうなんぎい</span><span class="note">懷舊琉球料理／國際通</span></div>
+          <div class="list-row"><span class="name">JEF Sunrise Naha 那覇店</span><span class="note">苦瓜漢堡</span></div>
+          <div class="list-row"><span class="name">高良食堂（沖繩家庭料理）</span><span class="note">那霸市波上宮附近</span></div>
+          <div class="list-row"><span class="name">Echizen 越前</span><span class="note">美術館附近的螃蟹大餐</span></div>
+        </div>
+      </details>
+
+      <details class="wishlist">
+        <summary>伴手禮清單</summary>
+        <div class="list-rows">
+          <div class="list-row"><span class="name">沖繩八島黑糖</span><span class="note">沖繩</span></div>
+          <div class="list-row"><span class="name">南風堂　辣味蝦餅</span><span class="note">沖繩</span></div>
+          <div class="list-row"><span class="name">Royce　石垣島海鹽系列</span><span class="note">石垣島</span></div>
+          <div class="list-row"><span class="name">石垣島辣油</span><span class="note">石垣島</span></div>
+          <div class="list-row"><span class="name">Kabaya　餅乾棒</span><span class="note">沖繩</span></div>
+          <div class="list-row"><span class="name">新垣菓子店　金楚糕</span><span class="note">沖繩</span></div>
+          <div class="list-row"><span class="name">星巴克　沖繩限定城市杯</span><span class="note">沖繩</span></div>
+        </div>
+      </details>
     </div>
 
     <div>
@@ -244,21 +278,23 @@ const itinerary = {
     { time:"飯店", place:"Hewitt Resort Naha（那霸休伊特渡假飯店）", note:"入住（4晚，附早餐）",
       price:"¥64,710／4晚", transport:"坐單軌電車（那霸機場→安里）",
       locations:[{name:"Hewitt Resort Naha",lat:26.2180737,lon:127.695838}] },
+    { time:"晚餐", place:"烏貴族 安里店", remark:"離飯店走路1分鐘",
+      locations:[] },
     { time:"晚餐", place:"國際通屋台村（居酒屋）",
       locations:[{name:"國際通屋台村",lat:26.2167026,lon:127.690478}] },
   ],
   2: [
-    { time:"10:00", place:"波上宮", locations:[{lat:26.2207369,lon:127.6711012}] },
+    { time:"10:00", place:"波上宮", remark:"高良食堂", locations:[{lat:26.2207369,lon:127.6711012}] },
     { time:"12:00", place:"瀨長島", note:"TESHIGOTO手工布包、幸福鬆餅、龍宮神社、龍神之湯",
       locations:[{lat:26.1765465,lon:127.6404145}] },
     { time:"15:00", place:"DMM Kariyushi水族館", note:"09:00～19:00", price:"用FUN PASS",
       locations:[{lat:26.1563877,lon:127.6506782}] },
-    { time:"18:00", place:"第一牧志公設市場", note:"08:00～22:00",
+    { time:"18:00", place:"第一牧志公設市場", note:"08:00～22:00", remark:"苦瓜漢堡JEF Sunrise Naha",
       locations:[{lat:26.2145927,lon:127.6883013}] },
     { time:"22:00", place:"早點睡覺，隔天一早要出門！", locations:[] },
   ],
   3: [
-    { time:"7:30", place:"一日遊行程", note:"美麗海水族館、古宇利島、萬座毛",
+    { time:"7:20", place:"一日遊行程", note:"美麗海水族館、古宇利島、萬座毛",
       price:"用KKday套票", transport:"包車／租車", remark:"07:30集合",
       locations:[
         {name:"美麗海水族館",lat:26.694338,lon:127.878013},
@@ -274,6 +310,7 @@ const itinerary = {
       remark:"需申請Okinawa FunPASS，可現場換開運口金包", url:"https://lihi1.me/CNWOK",
       locations:[{lat:26.2177306,lon:127.7225639}] },
     { time:"14:00", place:"國際通",
+      note:"豬肉蛋飯糰（7:00～20:00）、MIA風獅爺奶油餅、沖繩麵 EIBUN、Yuunangi 懷舊琉球料理、黑糖屋",
       remark:"國際通頭尾分別為單軌電車的「縣廳前站」與「牧志站」，建議採取「一站進、一站出」的單向不回頭走法。",
       locations:[{lat:26.2154644,lon:127.6857013}] },
     { time:"19:00", place:"Echizen越前", note:"螃蟹大餐（美術館附近）", remark:"玠宇已預訂",
@@ -291,6 +328,7 @@ const itinerary = {
       locations:[{name:"青洞潛水（真栄田岬）",lat:26.4425977,lon:127.7734662}] },
     { time:"晚上", place:"美國村B", locations:[{lat:26.3158768,lon:127.7540067}] },
     { time:"晚上", place:"永旺夢樂城 沖繩來客夢（寶可夢中心）",
+      remark:"若潛水完要直接去永旺的話，建議先搭公車到美國村，再搭計程車到永旺。",
       locations:[{lat:26.3145118,lon:127.7965482}] },
   ],
   6: [
@@ -308,14 +346,14 @@ const itinerary = {
 };
 
 const expenseCategories = [
-  { key:"flight", label:"機票", seed:"" },
-  { key:"hotel1", label:"住宿（Hewitt Resort Naha）", seed:"" },
-  { key:"hotel2", label:"住宿（沖繩王子大飯店）", seed:"6223" },
-  { key:"transport", label:"交通（單軌／公車／計程車）", seed:"" },
-  { key:"activity", label:"票券／活動（FunPASS、潛水等）", seed:"" },
+  { key:"flight", label:"機票", seed:"10680" },
+  { key:"hotel", label:"住宿", seed:"10294" },
+  { key:"transport", label:"交通", seed:"1255" },
   { key:"food", label:"餐飲", seed:"" },
+  { key:"activity", label:"門票／活動", seed:"4468" },
+  { key:"insurance", label:"保險", seed:"909" },
   { key:"shopping", label:"購物／伴手禮", seed:"" },
-  { key:"other", label:"其他", seed:"" },
+  { key:"carry", label:"隨身攜帶（網卡等）", seed:"369" },
 ];
 
 /* ============== 打勾核對：localStorage ============== */
